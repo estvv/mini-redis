@@ -1,118 +1,62 @@
-# Multi-threaded Key-Value Store
+# rust-kvs-multithreaded
 
-A multi-threaded key-value store server implementation in Rust with persistence, TTL support, and pub/sub messaging.
+A lightweight, thread-safe key-value store built in Rust with async I/O and pub/sub messaging.
 
-## Overview
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE)
 
-This project implements a TCP-based key-value store server with thread-safe concurrent access and publish/subscribe messaging. Built in Rust, it demonstrates concurrent programming concepts including shared state management with `Arc<Mutex<T>>`, non-blocking I/O, broadcast channels, and graceful shutdown handling.
+## Architecture
+
+```
+┌───────────────────────────────────┐
+│  Client (telnet / netcat)          │
+│  Publisher / Subscriber            │
+└──────────┬────────────────────────┘
+           │ TCP (line-based protocol)
+           ▼
+┌───────────────────────────────────┐
+│  main.rs                           │
+│  Connection Handler                │
+│  Client ID Assignment              │
+└──────────┬────────────────────────┘
+           │ Arc<Mutex<...>>
+           ▼
+┌───────────────────────────────────┐
+│  Dispatcher                        │
+│  Request Router                    │
+│  Client Subscription Tracking      │
+└──────────┬────────────────────────┘
+           │
+    ┌──────┴──────┐
+    ▼             ▼
+┌─────────┐  ┌─────────────────┐
+│ Stock   │  │ ChannelManager  │
+│ HashMap │  │ Broadcast       │
+│ Expiry  │  │ Channels        │
+└─────────┘  └─────────────────┘
+```
+
+## Modules
+
+| Module | Description |
+|--------|-------------|
+| `main.rs` | TCP server, connection handling, client ID assignment, graceful shutdown |
+| `dispatcher.rs` | Request routing, command execution, subscription tracking |
+| `request.rs` | Request parsing (GET, SET, DEL, SAVE, LOAD, DROP, PUB, SUB, UNSUB) |
+| `stock.rs` | Key-value storage with expiration support and JSON persistence |
+| `channel_manager.rs` | Pub/sub channel management with broadcast channels |
+| `returns.rs` | Return types (Ok, Err, NotFound, Subscribe, Unsubscribe) |
 
 ## Features
 
-- **Multi-threaded Architecture**: Each client connection is handled in a separate thread, allowing concurrent client access
-- **Thread-safe State**: Uses `Arc<Mutex<Dispatcher>>` pattern to safely share the key-value store across threads
-- **Publish/Subscribe**: Real-time messaging with channel-based pub/sub system
-- **Client Tracking**: Each client has a unique ID for subscription management
-- **TTL Support**: Keys can be set with optional expiration times (in milliseconds)
-- **Persistence**: Save and load the key-value store state to/from JSON files
-- **Graceful Shutdown**: Handles Ctrl+C (SIGINT) for clean server termination
+- **Thread-safe key-value store** — `Arc<Mutex<T>>` pattern for safe concurrent access across multiple clients
+- **Key expiration** — SET with EXP parameter for TTL (lazy expiration on read)
+- **Pub/Sub messaging** — broadcast channels for real-time message distribution to subscribers
+- **Client tracking** — unique IDs for subscription management and cleanup
+- **JSON persistence** — SAVE/LOAD commands for state snapshots
+- **Graceful shutdown** — Ctrl+C handling with clean termination
+- **Async I/O** — Tokio runtime with non-blocking TCP listener
 
-## Commands
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `GET <key>` | Retrieve a value by key | `GET mykey` |
-| `SET <key> <value> [EXP <ms>]` | Set a key-value pair with optional expiration | `SET mykey hello` or `SET mykey hello EXP 5000` |
-| `DEL <key>` | Delete a key | `DEL mykey` |
-| `SAVE <filename.json>` | Save current state to `./data/<filename.json>` | `SAVE dump.json` |
-| `LOAD <filename.json>` | Load state from `./data/<filename.json>` | `LOAD dump.json` |
-| `DROP` | Clear all keys from the store | `DROP` |
-| `PUB <channel> <message>` | Publish a message to a channel | `PUB news Hello World` |
-| `SUB <channel>` | Subscribe to a channel | `SUB news` |
-| `UNSUB <channel>` | Unsubscribe from a channel | `UNSUB news` |
-
-Expirations are specified in milliseconds. Keys with expired TTL are automatically removed when accessed via `GET`.
-
-**Pub/Sub Notes:**
-- Each client can only be subscribed to one channel at a time
-- Subscribing to a new channel replaces the previous subscription
-- Messages are broadcast to all subscribers on the channel
-- Unsubscribing from a non-existent or non-subscribed channel returns an error
-
-## Project Structure
-
-```
-src/
-├── main.rs            # Server entry point, connection handling, request processing
-├── dispatcher.rs      # Request routing, command execution, client subscription tracking
-├── request.rs         # Request parsing (GET, SET, DEL, SAVE, LOAD, DROP, PUB, SUB, UNSUB)
-├── channel_manager.rs # Pub/sub channel management with broadcast channels
-├── stock.rs           # Key-value storage with expiration support
-└── returns.rs         # Return types (Ok, Err, NotFound, Subscribe, Unsubscribe)
-```
-
-## Implementation Details
-
-### Architecture
-
-- **Server**: Non-blocking TCP listener on `127.0.0.1:6379` with read timeouts
-- **Concurrency**: Uses `Arc<Mutex<Dispatcher>>` for thread-safe state management, `tokio::select!` for handling subscriptions
-- **Client IDs**: Each client is assigned a unique ID using `AtomicU64` counter for subscription tracking
-- **State Management**: `Dispatcher` wraps `Stock` (the data store) and `ChannelManager` in `Arc<Mutex<...>>` for safe concurrent access
-- **Client Handler**: Each connection spawns a Tokio task that reads line-by-line and dispatches commands
-- **Pub/Sub**: Uses `tokio::sync::broadcast` channels for message distribution to multiple subscribers
-
-### Data Storage
-
-```rust
-struct Data {
-    value: String,
-    expiration: Option<u64>,  // Unix timestamp in milliseconds
-}
-
-struct Stock {
-    map: HashMap<String, Data>,
-}
-```
-
-Data is persisted as JSON using `serde_json`.
-
-### Pub/Sub System
-
-```rust
-pub struct Dispatcher {
-    stock: Stock,
-    channel_manager: ChannelManager,
-    client_subscriptions: HashMap<u64, String>,  // client_id -> channel_name
-}
-
-pub struct ChannelManager {
-    channels: HashMap<String, broadcast::Sender<String>>,  // channel_name -> sender
-}
-```
-
-**Client Tracking**: The `Dispatcher` maintains a mapping of client IDs to their subscribed channels, enabling proper validation and cleanup.
-
-**Broadcast Channels**: Each channel uses a `tokio::sync::broadcast` channel with capacity 16. Multiple receivers can subscribe to a single sender.
-
-**Cleanup**: When clients disconnect, their subscription is automatically removed from the tracking map.
-
-### Execution Flow
-
-1. Server binds to port 6379 and listens for connections
-2. On new connection, assigns a unique client ID and spawns a Tokio task
-3. Client task reads commands line-by-line
-4. Commands are parsed into `Request` enum variants
-5. `Dispatcher` routes to appropriate handler with client ID
-6. `Stock` or `ChannelManager` performs the operation (with mutex lock held)
-7. Response is written back to client
-8. If subscribed, client uses `tokio::select!` to handle both incoming commands and channel messages
-
-## Dependencies
-
-- `tokio` - Async runtime with networking and sync primitives
-- `serde` & `serde_json` - JSON serialization for persistence
-
-## Running
+## Quick Start
 
 ```bash
 # Build and run
@@ -121,7 +65,7 @@ cargo run
 # The server starts on 127.0.0.1:6379
 ```
 
-In another terminal, connect with:
+In another terminal:
 
 ```bash
 nc localhost 6379
@@ -129,7 +73,28 @@ nc localhost 6379
 telnet localhost 6379
 ```
 
-Example session:
+## Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `GET <key>` | Retrieve a value by key | `GET mykey` |
+| `SET <key> <value> [EXP <ms>]` | Set a key-value pair with optional expiration | `SET mykey hello EXP 5000` |
+| `DEL <key>` | Delete a key | `DEL mykey` |
+| `SAVE <file.json>` | Save state to `./data/<file.json>` | `SAVE dump.json` |
+| `LOAD <file.json>` | Load state from `./data/<file.json>` | `LOAD dump.json` |
+| `DROP` | Clear all keys | `DROP` |
+| `PUB <channel> <message>` | Publish a message to a channel | `PUB news Hello World` |
+| `SUB <channel>` | Subscribe to a channel | `SUB news` |
+| `UNSUB <channel>` | Unsubscribe from a channel | `UNSUB news` |
+
+**Expiration**: TTL in milliseconds. Expired keys are removed lazily on `GET`.
+
+**Pub/Sub**: Each client can subscribe to one channel at a time. Messages are broadcast to all subscribers.
+
+## Examples
+
+### Basic Key-Value Operations
+
 ```
 SET username alice
 OK
@@ -139,27 +104,28 @@ SET temp data EXP 3000
 OK
 GET temp
 data
-# After 3 seconds:
+# (after 3 seconds)
 GET temp
 Key 'temp' not found
 SAVE mydata.json
 OK
+LOAD mydata.json
+OK
 ```
 
-### Pub/Sub Example
+### Pub/Sub Messaging
 
-Terminal 1 (Subscriber):
+**Terminal 1 (Subscriber):**
 ```
 SUB news
 Subscribed
-[Waiting for messages...]
 MESSAGE news Breaking: Rust 2.0 released!
 MESSAGE news Update: Performance improvements
 UNSUB news
 Unsubscribed
 ```
 
-Terminal 2 (Publisher):
+**Terminal 2 (Publisher):**
 ```
 PUB news Breaking: Rust 2.0 released!
 Published to 1 subscriber(s)
@@ -167,7 +133,7 @@ PUB news Update: Performance improvements
 Published to 1 subscriber(s)
 ```
 
-### Error Handling Examples
+### Error Handling
 
 ```
 UNSUB news
@@ -182,20 +148,76 @@ UNSUB nonexistent
 Error: Channel 'nonexistent' does not exist
 ```
 
-## Graceful Shutdown
+## Data Model
 
-Press `Ctrl+C` to gracefully shutdown the server. The server will:
-1. Stop accepting new connections
-2. Signal all client threads to shut down
-3. Exit cleanly
+```rust
+struct Data {
+    value: String,
+    expiration: Option<u64>,  // Unix timestamp in milliseconds
+}
 
-## Project History
+struct Stock {
+    map: HashMap<String, Data>,
+}
+```
 
-This project was developed incrementally:
+## Implementation Details
 
-1. Basic client-server with `GET`, `SET`, `DEL` commands
-2. Multi-threading with mutex for concurrent client access
-3. `SAVE`, `LOAD`, and `DROP` commands for persistence
-4. Graceful shutdown and dynamic reading with non-blocking I/O
-5. **Pub/Sub system**: Added `PUB`, `SUB`, `UNSUB` commands with broadcast channels
-6. **Client tracking**: Implemented unique client IDs and subscription validation to prevent disconnection issues
+### Concurrency Model
+
+- **Single dispatcher lock** — All operations share one `Arc<Mutex<Dispatcher>>`
+- **Tokio tasks** — Each client spawns an async task
+- **Client IDs** — `AtomicU64` counter for unique IDs
+- **Broadcast channels** — `tokio::sync::broadcast` for pub/sub (capacity: 16)
+
+### Expiration Strategy
+
+- **Lazy expiration** — Keys are checked and removed on `GET`
+- **No background cleanup** — Expired keys remain in memory until accessed
+
+### Message Flow
+
+```
+Publisher                  Dispatcher                 Subscriber
+    │                          │                           │
+    │  PUB channel msg         │                           │
+    │ ───────────────────────► │                           │
+    │                          │  broadcast::send()        │
+    │                          │ ─────────────────────────►│
+    │                          │                           │  MESSAGE ...
+```
+
+## Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| Bind address | `127.0.0.1:6379` | Hardcoded in `main.rs` |
+| Broadcast capacity | 16 | Buffer size per channel |
+
+## Dependencies
+
+| Crate | Usage |
+|-------|-------|
+| `tokio` | Async runtime, TCP, sync primitives |
+| `serde` | Serialization |
+| `serde_json` | JSON persistence |
+
+## Project Structure
+
+```
+src/
+├── main.rs            # Server entry point, connection handling
+├── dispatcher.rs      # Request routing, command execution
+├── request.rs         # Request parsing
+├── channel_manager.rs # Pub/sub channel management
+├── stock.rs           # Key-value storage with expiration
+└── returns.rs         # Return types
+```
+
+## Roadmap
+
+See [FEATURES.md](FEATURES.md) for planned and completed features.
+
+## License
+
+Licensed under either of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) at your option.

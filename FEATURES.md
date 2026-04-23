@@ -1,34 +1,54 @@
 # FEATURES
 
 ## Core Logic & Data Operations
-- [x] Basic key-value store operations (GET, SET, DEL).
-- [x] Key expiration support (SET with EXP parameter).
-- [x] DROP command to clear all data.
-- [x] Multi-threaded async server with Tokio runtime.
-- [ ] Add INCR and DECR for thread-safe counting.
-- [ ] Add support for transactions (MULTI/EXEC).
-- [ ] Implement a basic eviction policy for memory management (Eviction Policy, LRU, LFU, etc.).
+- [x] GET/SET/DEL - Basic key-value store operations.
+- [x] SET EXP - Key expiration support with TTL parameter.
+- [x] DROP - Clear all data from the store.
+- [x] ASYNC SERVER - Multi-threaded async server with Tokio runtime.
+- [ ] INCR/DECR - Atomic increment and decrement for thread-safe counting.
+- [ ] MULTI/EXEC - Support for atomic transactions.
+- [ ] EVICTION POLICY - Basic memory management with LRU, LFU, etc.
 
 ## Persistence & Disaster Recovery
-- [x] SAVE/LOAD commands for JSON-based persistence.
-- [x] Signal handling for graceful shutdown (Ctrl+C).
-- [ ] Implement AOF (Append Only File) for real-time data safety.
-- [ ] Save a backup every x time to prevent data loss (scheduled backups).
-- [ ] Handle OS signals to save data before exiting (SIGTERM, etc.).
+- [x] SAVE/LOAD - JSON-based persistence to file.
+- [x] GRACEFUL SHUTDOWN - Signal handling for clean Ctrl+C termination.
+- [ ] AOF - Append Only File for real-time data safety.
+- [ ] SCHEDULED BACKUP - Save a backup every x time to prevent data loss.
+- [ ] OS SIGNALS - Handle SIGTERM and other signals to save data before exiting.
 
 ## Protocol & Networking
-- [x] Pub/Sub messaging system (PUB/SUB/UNSUB commands).
-- [x] Client connection tracking and cleanup.
-- [ ] Support the official Redis Serialization Protocol (RESP).
-- [ ] Implement a simple replication mechanism for data redundancy.
-- [ ] Add TELL command for server-to-server communication in a cluster setup.
+- [x] PUB/SUB/UNSUB - Pub/Sub messaging system with broadcast channels.
+- [x] CLIENT TRACKING - Client connection tracking and cleanup.
+- [ ] RESP - Support the official Redis Serialization Protocol.
+- [ ] REPLICATION - Simple replication mechanism for data redundancy.
+- [ ] TELL - Server-to-server communication in a cluster setup.
 
 ## Security & Configuration
-- [ ] Implement an AUTH command for password protection.
-- [ ] Add a CONFIG command for runtime configuration changes.
-- [ ] Support config files or ENV vars for port, passwords, and limits.
+- [ ] AUTH - Password protection for client connections.
+- [ ] CONFIG - Runtime configuration changes.
+- [ ] CONFIG FILES - Support config files or ENV vars for port, passwords, and limits.
 
 ## Observability & Performance
-- [ ] Add an INFO command for server stats and memory usage.
-- [ ] Implement structured logging (using `tracing` or `log` crate).
-- [ ] Add a simple monitoring endpoint (e.g., /metrics) for Prometheus integration.
+- [ ] INFO - Server stats and memory usage.
+- [ ] STRUCTURED LOGGING - Using `tracing` or `log` crate.
+- [ ] METRICS - Monitoring endpoint for Prometheus integration.
+- [ ] ACTIVE EXPIRATION - Background thread that periodically scans and removes expired keys.
+- [ ] COMPRESSION - Compress values above threshold to reduce memory usage.
+
+## Data Structures
+- [ ] LISTS - Ordered lists with LPUSH, RPUSH, LPOP, RPOP, LRANGE.
+- [ ] HASHES - Field-value pairs with HSET, HGET, HDEL, HGETALL.
+- [ ] SETS - Unique unordered collections with SADD, SREM, SMEMBERS, SISMEMBER.
+- [ ] SORTED SETS - Score-ordered elements with ZADD, ZREM, ZRANGE.
+
+## Advanced Operations
+- [ ] MGET/MSET - Batch get/set multiple keys in a single command.
+- [ ] KEYS - Find all keys matching a pattern (e.g., `KEYS user:*`).
+- [ ] TTL - Query remaining time-to-live on a key.
+- [ ] EXISTS - Check if one or more keys exist.
+- [ ] RENAME - Atomically rename a key.
+
+## Developer Experience
+- [ ] CLI CLIENT - Interactive command-line client for testing and debugging.
+- [ ] CONNECTION POOLING - Reuse connections for better performance.
+- [ ] BATCH - Execute multiple commands in a single request.
