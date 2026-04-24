@@ -483,4 +483,4 @@ See [FEATURES.md](FEATURES.md) for planned and completed features.
 
 ## License
 
-Licensed under [MIT](LICENSE-MIT)
+Licensed under [MIT](LICENSE)
