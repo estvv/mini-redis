@@ -27,17 +27,26 @@ impl Stock {
     pub fn set(&mut self, key: String, value: String) {
         self.map.insert(
             key,
-            Data { value, expiration: None },
+            Data {
+                value,
+                expiration: None,
+            },
         );
     }
 
     pub fn set_with_expiration(&mut self, key: String, value: String, duration: u64) {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         let expiration = now + (duration * 1000);
 
         self.map.insert(
             key,
-            Data { value, expiration: Some(expiration) },
+            Data {
+                value,
+                expiration: Some(expiration),
+            },
         );
     }
 
@@ -46,7 +55,10 @@ impl Stock {
 
         if data.is_some() {
             if let Some(expiration) = data.unwrap().expiration {
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
 
                 if now > expiration {
                     self.del(key);
@@ -75,7 +87,8 @@ impl Stock {
         let mut file = File::open("./data/".to_string() + filename).map_err(|e| e.to_string())?;
         let mut content = String::new();
 
-        file.read_to_string(&mut content).map_err(|e| e.to_string())?;
+        file.read_to_string(&mut content)
+            .map_err(|e| e.to_string())?;
 
         self.map = serde_json::from_str(&content).map_err(|e| e.to_string())?;
 
@@ -89,7 +102,10 @@ impl Stock {
     pub fn incr(&mut self, key: String) -> Result<i64, String> {
         let current = self.map.get(&key).and_then(|data| {
             if let Some(expiration) = data.expiration {
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
 
                 if now > expiration {
                     return None;
@@ -105,7 +121,10 @@ impl Stock {
 
         self.map.insert(
             key,
-            Data { value: new_value.to_string(), expiration: None },
+            Data {
+                value: new_value.to_string(),
+                expiration: None,
+            },
         );
 
         Ok(new_value)
@@ -114,7 +133,10 @@ impl Stock {
     pub fn decr(&mut self, key: String) -> Result<i64, String> {
         let current = self.map.get(&key).and_then(|data| {
             if let Some(expiration) = data.expiration {
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
 
                 if now > expiration {
                     return None;
@@ -130,7 +152,10 @@ impl Stock {
 
         self.map.insert(
             key,
-            Data { value: new_value.to_string(), expiration: None },
+            Data {
+                value: new_value.to_string(),
+                expiration: None,
+            },
         );
 
         Ok(new_value)
@@ -140,7 +165,10 @@ impl Stock {
         let data = self.map.get(&key)?;
 
         if let Some(expiration) = data.expiration {
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64;
 
             if now > expiration {
                 self.del(&key);
@@ -160,5 +188,13 @@ impl Stock {
                 (key, exists)
             })
             .collect()
+    }
+
+    pub fn list_keys(&self) -> Vec<String> {
+        self.map.keys().cloned().collect()
+    }
+
+    pub fn count(&self) -> usize {
+        self.map.len()
     }
 }

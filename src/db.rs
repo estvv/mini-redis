@@ -162,6 +162,27 @@ impl Db {
 
         Return::Ok(formatted)
     }
+
+    pub fn list_all_keys(&self) -> Vec<String> {
+        self.inner.lock().unwrap().stock.list_keys()
+    }
+
+    pub fn get_value(&self, key: &str) -> Option<String> {
+        self.inner
+            .lock()
+            .unwrap()
+            .stock
+            .get(&key.to_string())
+            .map(|s| s.to_string())
+    }
+
+    pub fn get_ttl(&self, key: &str) -> Option<u64> {
+        self.inner.lock().unwrap().stock.ttl(key.to_string())
+    }
+
+    pub fn key_count(&self) -> usize {
+        self.inner.lock().unwrap().stock.count()
+    }
 }
 
 impl Clone for Db {

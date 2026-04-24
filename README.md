@@ -40,6 +40,60 @@ A lightweight, thread-safe key-value store built in Rust with async I/O and pub/
 └───────────────────────────────────┘
 ```
 
+## Architecture: TUI and TCP Server
+
+**Single Process Architecture:**
+
+When running with `--ui`, there is ONE process that runs BOTH the TCP server AND the TUI dashboard:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Single Process (cargo run -- --ui)             │
+│                                                             │
+│  ┌──────────────────┐         ┌──────────────────────┐      │
+│  │   TCP Server     │         │    TUI Dashboard     │      │
+│  │  (port 6379)     │         │   (interactive UI)   │      │
+│  │                  │         │                      │      │
+│  │  • Netcat/telnet │         │  • Key browser       │      │
+│  │  • redis-cli     │         │  • Command input     │      │
+│  │  • Other clients │         │  • History view      │      │
+│  └────────┬─────────┘         └──────────┬───────────┘      │
+│           │                              │                  │
+│           │         Arc<Db>              │                  │
+│           │     (shared reference)       │                  │
+│           │                              │                  │
+│           └──────────────┬───────────────┘                  │
+│                          ▼                                  │
+│                 ┌─────────────────┐                         │
+│                 │   Arc<Mutex<    │                         │
+│                 │     DbInner     │                         │
+│                 │   >             │                         │
+│                 │                 │                         │
+│                 │  ├─ Stock       │                         │
+│                 │  ├─ ChannelMgr  │                         │
+│                 │  └─ ClientSubs  │                         │
+│                 └─────────────────┘                         │
+│                        In-Memory Database                   │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          │ TCP Protocol (line-based)
+                          ▼
+              ┌───────────────────────────┐
+              │   External Clients        │
+              │  (netcat, telnet, etc.)   │
+              └───────────────────────────┘
+```
+
+**Key Points:**
+- **The TUI is NOT a client** - It accesses the database directly in memory
+- **The TUI does NOT connect via TCP** - It shares the same `Arc<Db>` reference
+- **External clients connect via TCP** - On port 6379 (same as Redis default)
+- **Both share the same data** - Changes from TUI or external clients are instantly visible to both
+
+**Two Modes:**
+1. **Server-only mode** (`cargo run`): Just the TCP server, no TUI
+2. **Combined mode** (`cargo run -- --ui`): TCP server + TUI dashboard in one process
+
 ## Modules
 
 | Module | Description |
@@ -77,10 +131,28 @@ See [FEATURES.md](FEATURES.md) for the full roadmap with planned features.
 ## Quick Start
 
 ```bash
-# Build and run
+# Build and run (TCP server mode)
 cargo run
 
 # The server starts on 127.0.0.1:6379
+# Run with TUI dashboard:
+cargo run -- --ui
+```
+
+### Two Modes:
+
+**1. TCP Server Mode (Default)**
+```bash
+cargo run
+# Starts TCP server on port 6379
+# Use with telnet/netcat
+```
+
+**2. TUI Dashboard Mode**
+```bash
+cargo run -- --ui
+# Starts TCP server + Interactive dashboard
+# Perfect for testing and monitoring
 ```
 
 In another terminal:
@@ -114,6 +186,57 @@ telnet localhost 6379
 **EXISTS**: Returns existence status for each key in format `key -> true/false`.
 
 **Pub/Sub**: Each client can subscribe to one channel at a time. Messages are broadcast to all subscribers.
+
+**Interactive Dashboard**: Run with `--ui` flag for a beautiful TUI interface with real-time key monitoring, command history, and live updates.
+
+## Interactive Dashboard (TUI)
+
+```bash
+# Start with interactive dashboard
+cargo run -- --ui
+```
+
+### Dashboard Features
+
+**Tab 1: Key-Value Store**
+- Real-time list of all keys and values
+- TTL countdown timers for expiring keys
+- Navigate with arrow keys
+
+**Tab 2: Command History**
+- See all executed commands
+- Color-coded results
+
+**Tab 3: Help**
+- Quick reference for all commands
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `q` | Quit dashboard |
+| `i` | Enter command mode |
+| `Esc` | Exit command mode |
+| `Enter` | Execute command |
+| arrows | Navigate keys |
+| `Tab` | Next tab |
+
+### Example Dashboard Session
+
+**Main Dashboard (Keys View):**
+
+![Dashboard Screenshot](./examples/screen_1.png)
+
+**History Tab:**
+
+![History Screenshot](./examples/screen_2.png)
+
+**Key Features:**
+- ✅ Real-time key updates (refresh every 250ms)
+- ✅ Color-coded command results (cyan=input, green=success, red=error)
+- ✅ TTL countdown with visual indicator for expiring keys
+- ✅ Responsive keyboard navigation
+- ✅ Works alongside TCP server on port 6379
 
 ## Examples
 
@@ -328,10 +451,14 @@ src/
 ├── stock.rs                # Key-value storage with expiration
 ├── channel_manager.rs      # Pub/sub channel management
 ├── returns.rs              # Return types
+├── ui/                     # Terminal UI dashboard
+│   ├── mod.rs              # UI module exports
+│   ├── app.rs              # Application state
+│   └── ui.rs               # TUI rendering and event handling
 └── lib.rs                  # Library exports
 ```
 
-### Architecture Evolution
+## Architecture Evolution
 
 **Current Architecture (Command Trait Pattern)**:
 - `Db` with interior mutability (`Arc<Mutex<DbInner>>`)
@@ -339,6 +466,16 @@ src/
 - Each command implements `Command` trait
 - `Arc<Db>` passed to each command's `execute()` method
 - Extensible: add new command by creating struct + implementing trait
+
+## Dependencies
+
+| Crate | Usage |
+|-------|-------|
+| `tokio` | Async runtime, TCP, sync primitives |
+| `serde` | Serialization |
+| `serde_json` | JSON persistence |
+| `ratatui` | Terminal UI dashboard |
+| `crossterm` | Terminal manipulation |
 
 ## Roadmap
 

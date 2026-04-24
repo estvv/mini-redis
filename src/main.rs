@@ -8,6 +8,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::env;
 
 static CLIENT_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
@@ -123,11 +124,53 @@ async fn handle_client(stream: TcpStream, db: Arc<Db>) {
 
 #[tokio::main]
 async fn main() {
+    let args: Vec<String> = env::args().collect();
+    
+    if args.len() > 1 && args[1] == "--ui" {
+        run_ui_mode();
+    } else {
+        run_server_mode().await;
+    }
+}
+
+fn run_ui_mode() {
+    println!("Starting Mini Redis Dashboard...");
+    let db = Arc::new(Db::new());
+    
+    // Start TCP server in background
+    let db_clone = Arc::clone(&db);
+    tokio::spawn(async move {
+        let listener = TcpListener::bind("127.0.0.1:6379").await.expect("Unable to open port");
+        println!("TCP server started on port 6379");
+        
+        loop {
+            match listener.accept().await {
+                Ok((stream, _)) => {
+                    let db = Arc::clone(&db_clone);
+                    tokio::spawn(async move {
+                        handle_client(stream, db).await;
+                    });
+                }
+                Err(e) => {
+                    eprintln!("Connection error: {}", e);
+                }
+            }
+        }
+    });
+    
+    // Run TUI in main thread
+    if let Err(e) = rust_mini_redis::ui::run_ui(db) {
+        eprintln!("UI error: {}", e);
+    }
+}
+
+async fn run_server_mode() {
     let listener = TcpListener::bind("127.0.0.1:6379").await.expect("Unable to open port");
 
     println!("Started on port 6379.");
     println!("Press Ctrl+C to shutdown.");
     println!("Waiting for connections...");
+    println!("Tip: Run with --ui flag for interactive dashboard");
 
     let db = Arc::new(Db::new());
 
