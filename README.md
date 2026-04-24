@@ -2,7 +2,7 @@
 
 A lightweight, thread-safe key-value store built in Rust with async I/O and pub/sub messaging.
 
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ## Architecture
 
@@ -41,7 +41,7 @@ A lightweight, thread-safe key-value store built in Rust with async I/O and pub/
 |--------|-------------|
 | `main.rs` | TCP server, connection handling, client ID assignment, graceful shutdown |
 | `dispatcher.rs` | Request routing, command execution, subscription tracking |
-| `request.rs` | Request parsing (GET, SET, DEL, INCR, DECR, SAVE, LOAD, DROP, PUB, SUB, UNSUB, TTL) |
+| `request.rs` | Request parsing (GET, SET, DEL, EXISTS, INCR, DECR, SAVE, LOAD, DROP, PUB, SUB, UNSUB, TTL) |
 | `stock.rs` | Key-value storage with expiration support and JSON persistence |
 | `channel_manager.rs` | Pub/sub channel management with broadcast channels |
 | `returns.rs` | Return types (Ok, Err, NotFound, Subscribe, Unsubscribe) |
@@ -50,6 +50,7 @@ A lightweight, thread-safe key-value store built in Rust with async I/O and pub/
 
 ### Core Logic & Data Operations
 - **GET/SET/DEL** - Basic key-value store operations
+- **EXISTS** - Check if multiple keys exist
 - **SET EXP** - Key expiration with TTL parameter
 - **TTL** - Get remaining time to live for a key
 - **INCR/DECR** - Atomic increment and decrement for counters
@@ -88,8 +89,9 @@ telnet localhost 6379
 | Command | Description | Example |
 |---------|-------------|---------|
 | `GET <key>` | Retrieve a value by key | `GET mykey` |
-| `SET <key> <value> [EXP <ms>]` | Set a key-value pair with optional expiration | `SET mykey hello EXP 5000` |
+| `SET <key> <value> [EXP <sec>]` | Set a key-value pair with optional expiration | `SET mykey hello EXP 10` |
 | `DEL <key>` | Delete a key | `DEL mykey` |
+| `EXISTS <key> [<key> ...]` | Check if one or more keys exist | `EXISTS key1 key2 key3` |
 | `TTL <key>` | Get remaining time to live for a key (in ms) | `TTL mykey` |
 | `INCR <key>` | Increment value by 1 (creates key with value 1 if not exists) | `INCR counter` |
 | `DECR <key>` | Decrement value by 1 (creates key with value -1 if not exists) | `DECR counter` |
@@ -100,7 +102,9 @@ telnet localhost 6379
 | `SUB <channel>` | Subscribe to a channel | `SUB news` |
 | `UNSUB <channel>` | Unsubscribe from a channel | `UNSUB news` |
 
-**Expiration**: TTL in milliseconds. Expired keys are removed lazily on `GET` or `TTL`.
+**Expiration**: TTL in seconds. Expired keys are removed lazily on `GET`, `TTL`, or `EXISTS`.
+
+**EXISTS**: Returns existence status for each key in format `key -> true/false`.
 
 **Pub/Sub**: Each client can subscribe to one channel at a time. Messages are broadcast to all subscribers.
 
@@ -145,6 +149,26 @@ INCR counter
 11
 DECR counter
 10
+```
+
+### Key Existence Check
+
+```
+SET key1 value1
+OK
+SET key2 value2
+OK
+EXISTS key1 key2 key3
+key1 -> true
+key2 -> true
+key3 -> false
+EXISTS key1
+key1 -> true
+DEL key1
+OK
+EXISTS key1 key2
+key1 -> false
+key2 -> true
 ```
 
 ### Pub/Sub Messaging
