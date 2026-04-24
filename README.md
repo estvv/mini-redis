@@ -8,35 +8,35 @@ A lightweight, thread-safe key-value store built in Rust with async I/O and pub/
 
 ```
 ┌───────────────────────────────────┐
-│  Client (telnet / netcat)          │
-│  Publisher / Subscriber            │
+│  Client (telnet / netcat)         │
+│  Publisher / Subscriber           │
 └──────────┬────────────────────────┘
            │ TCP (line-based protocol)
            ▼
 ┌───────────────────────────────────┐
-│  main.rs                           │
-│  Connection Handler                │
-│  Client ID Assignment              │
+│  main.rs                          │
+│  Connection Handler               │
+│  Client ID Assignment             │
 └──────────┬────────────────────────┘
            │ Arc<Db>
            ▼
 ┌───────────────────────────────────┐
-│  Db                                 │
-│  Arc<Mutex<DbInner>>               │
-│  ├─ Stock (HashMap)                │
-│  ├─ ChannelManager                 │
-│  └─ Client Subscriptions           │
+│  Db                               │
+│  Arc<Mutex<DbInner>>              │
+│  ├─ Stock (HashMap)               │
+│  ├─ ChannelManager                │
+│  └─ Client Subscriptions          │
 └──────────┬────────────────────────┘
            │
            ▼
 ┌───────────────────────────────────┐
-│  Command Trait                      │
-│  ├─ Get, Set, Del                  │
-│  ├─ Incr, Decr                     │
-│  ├─ Save, Load, Drop                │
-│  ├─ Publish, Subscribe              │
-│  ├─ Ttl, Exists                     │
-│  └─ Each implements execute()       │
+│  Command Trait                    │
+│  ├─ Get, Set, Del                 │
+│  ├─ Incr, Decr                    │
+│  ├─ Save, Load, Drop              │
+│  ├─ Publish, Subscribe            │
+│  ├─ Ttl, Exists                   │
+│  └─ Each implements execute()     │
 └───────────────────────────────────┘
 ```
 
