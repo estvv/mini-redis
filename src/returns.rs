@@ -8,7 +8,7 @@ pub enum Return {
     Err(String),
     NotFound(String),
     Subscribe(broadcast::Receiver<String>),
-    Unsubscribe,
+    Unsubscribe
 }
 
 impl PartialEq for Return {

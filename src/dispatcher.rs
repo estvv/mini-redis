@@ -35,6 +35,7 @@ impl Dispatcher {
             Request::SUB(channel) => self.subscribe(channel, client_id),
             Request::UNSUB(channel) => self.unsubscribe(channel, client_id),
             Request::TTL(key) => self.ttl(key),
+            Request::EXISTS(key) => self.exists(key),
         }
     }
 
@@ -146,5 +147,12 @@ impl Dispatcher {
             Some(ttl) => Return::Ok(ttl.to_string() + "ms"),
             None => Return::Ok("None".to_string()),
         }
+    }
+
+    pub fn exists(&mut self, keys: Vec<String>) -> Return {
+        let results = self.stock.exists(keys);
+        let formatted = results.iter().map(|(k, exists)| format!("{} -> {}", k, exists)).collect::<Vec<_>>().join("\r\n");
+
+        Return::Ok(formatted)
     }
 }

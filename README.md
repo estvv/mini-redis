@@ -100,7 +100,7 @@ telnet localhost 6379
 | `SUB <channel>` | Subscribe to a channel | `SUB news` |
 | `UNSUB <channel>` | Unsubscribe from a channel | `UNSUB news` |
 
-**Expiration**: TTL in seconds. Expired keys are removed lazily on `GET` or `TTL`.
+**Expiration**: TTL in milliseconds. Expired keys are removed lazily on `GET` or `TTL`.
 
 **Pub/Sub**: Each client can subscribe to one channel at a time. Messages are broadcast to all subscribers.
 

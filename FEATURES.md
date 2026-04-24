@@ -45,7 +45,7 @@
 - [ ] MGET/MSET - Batch get/set multiple keys in a single command.
 - [ ] KEYS - Find all keys matching a pattern (e.g., `KEYS user:*`).
 - [x] TTL - Query remaining time-to-live on a key.
-- [ ] EXISTS - Check if one or more keys exist.
+- [x] EXISTS - Check if one or more keys exist.
 - [ ] RENAME - Atomically rename a key.
 
 ## Developer Experience

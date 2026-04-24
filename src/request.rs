@@ -14,6 +14,7 @@ pub enum Request {
     SUB(String),
     UNSUB(String),
     TTL(String),
+    EXISTS(Vec<String>),
 }
 
 const GET_MIN_ARGS: usize = 2;
@@ -41,6 +42,8 @@ const SUB_MAX_ARGS: usize = 2;
 const TTL_MIN_ARGS: usize = 2;
 const TTL_MAX_ARGS: usize = 2;
 
+const EXISTS_MIN_ARGS: usize = 2;
+
 impl Request {
     pub fn parse(input: &str) -> Result<Self, String> {
         let parts: Vec<&str> = input.trim().split_whitespace().collect();
@@ -62,6 +65,7 @@ impl Request {
             "SUB" => Request::sub_callback(parts),
             "UNSUB" => Request::unsub_callback(parts),
             "TTL" => Request::ttl_callback(parts),
+            "EXISTS" => Request::exists_callback(parts),
             _ => Err("Unknown command".to_string()),
         }
     }
@@ -210,6 +214,14 @@ impl Request {
             Err("Invalid TTL request. Too many arguments.".to_string())
         } else {
             Ok(Request::TTL(parts[1].to_string()))
+        }
+    }
+
+    pub fn exists_callback(parts: Vec<&str>) -> Result<Self, String> {
+        if parts.len() < EXISTS_MIN_ARGS {
+            Err("Invalid EXISTS request. Need key argument.".to_string())
+        } else {
+            Ok(Request::EXISTS(parts[1..].iter().map(|s| s.to_string()).collect()))
         }
     }
 }
